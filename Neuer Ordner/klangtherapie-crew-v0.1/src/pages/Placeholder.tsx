@@ -1,0 +1,1 @@
+export default function Placeholder({title}:{title:string}){return <section className="page"><div className="hero glass"><p className="eyebrow">KLANGTHERAPIE CREW</p><h1>{title}</h1><p>Dieser Bereich ist für eine kommende Ausbaustufe vorbereitet.</p></div></section>}

@@ -1,0 +1,9 @@
+import { createClient } from '@supabase/supabase-js'
+import type { Database } from '../types/database.ts'
+
+const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
+const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+export const supabaseConfigured = Boolean(url && key && !url.includes('example.de'))
+export const supabase = createClient<Database>(url || 'https://example.invalid', key || 'demo-key', {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+})

@@ -1,0 +1,209 @@
+import { useEffect, useState } from "react";
+import { Plus, UserRoundCog, Users, X, ShieldCheck } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
+import { listProfiles, listRoles, listTeams, assignRole, addToTeam, setUserActive, createInvitation } from "../services/admin";
+import RolesAdmin from "./RolesAdmin";
+import FestivalAdmin from "./FestivalAdmin";
+
+const demoUsers = [
+  { id: "1", display_name: "Lena", username: "lena", active: true, team: "Aufbau", role: "Teamleitung" },
+  { id: "2", display_name: "Max", username: "max", active: true, team: "Technik", role: "Crew" },
+  { id: "3", display_name: "Sarah", username: "sarah", active: true, team: "Booking", role: "Admin" },
+  { id: "4", display_name: "Kim", username: "kim", active: true, team: "Awareness", role: "Crew" },
+];
+
+export default function Admin({ initialTab = "users" }: { initialTab?: "users" | "roles" | "festival" }) {
+  const { demo } = useAuth();
+  const [subTab, setSubTab] = useState<"users" | "roles" | "festival">(initialTab);
+  const [users, setUsers] = useState<any[]>(demoUsers);
+  const [roles, setRoles] = useState<any[]>([
+    { id: "r1", name: "Crew" },
+    { id: "r2", name: "Teamleitung" },
+    { id: "r3", name: "Admin" },
+    { id: "r4", name: "Super Admin" },
+  ]);
+  const [teams, setTeams] = useState<any[]>([
+    { id: "t1", name: "Technik" },
+    { id: "t2", name: "Aufbau" },
+    { id: "t3", name: "Booking" },
+    { id: "t4", name: "Awareness" },
+  ]);
+  const [invite, setInvite] = useState(false);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("");
+  const [team, setTeam] = useState("");
+
+  async function load() {
+    if (demo) return;
+    const [u, r, t] = await Promise.all([listProfiles(), listRoles(), listTeams()]);
+    setUsers(u.data || []);
+    setRoles(r.data || []);
+    setTeams(t.data || []);
+  }
+
+  useEffect(() => {
+    load();
+  }, [demo]);
+
+  async function sendInvite() {
+    if (!email) return;
+    if (!demo) {
+      const { error } = await createInvitation(email, role || undefined, team || undefined);
+      if (error) return alert(error.message);
+    }
+    setInvite(false);
+    setEmail("");
+    alert("Einladung wurde vorbereitet.");
+  }
+
+  return (
+    <section className="page">
+      <div className="titleRow">
+        <div>
+          <span className="eyebrow">ADMINISTRATION</span>
+          <h1>Crew-Verwaltung</h1>
+          <p>Benutzer, Rollen, Teams und Festival-Konfiguration.</p>
+        </div>
+        {subTab === "users" && (
+          <button className="primary" onClick={() => setInvite(true)}>
+            <Plus size={18} /> Benutzer einladen
+          </button>
+        )}
+      </div>
+
+      <div className="festivalTabs" style={{ marginBottom: "18px" }}>
+        <button className={subTab === "users" ? "active" : ""} onClick={() => setSubTab("users")}>
+          Benutzer & Teams
+        </button>
+        <button className={subTab === "roles" ? "active" : ""} onClick={() => setSubTab("roles")}>
+          Rollen & Rechte
+        </button>
+        <button className={subTab === "festival" ? "active" : ""} onClick={() => setSubTab("festival")}>
+          Festival-Verwaltung
+        </button>
+      </div>
+
+      {subTab === "roles" && <RolesAdmin />}
+      {subTab === "festival" && <FestivalAdmin />}
+
+      {subTab === "users" && (
+        <>
+          <div className="adminstats">
+            <div className="card glass">
+              <Users />
+              <b>{users.length}</b>
+              <span>Benutzer</span>
+            </div>
+            <div className="card glass">
+              <ShieldCheck />
+              <b>{roles.length}</b>
+              <span>Rollen</span>
+            </div>
+            <div className="card glass">
+              <UserRoundCog />
+              <b>{teams.length}</b>
+              <span>Teams</span>
+            </div>
+          </div>
+
+          <div className="table glass">
+            <div className="tr th">
+              <span>Name</span>
+              <span>Team</span>
+              <span>Rolle</span>
+              <span>Status</span>
+            </div>
+            {users.map((u: any) => (
+              <div className="tr userrow" key={u.id}>
+                <span>
+                  <i className="mini">{(u.display_name || u.username || "?")[0]}</i>
+                  <span>
+                    <b>{u.display_name || u.username}</b>
+                    <small>@{u.username}</small>
+                  </span>
+                </span>
+                <span>
+                  <select
+                    defaultValue={u.team || u.KT_team_members?.[0]?.KT_teams?.id || ""}
+                    onChange={(e) => !demo && addToTeam(u.id, e.target.value)}
+                  >
+                    <option value="">–</option>
+                    {teams.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </span>
+                <span>
+                  <select
+                    defaultValue={u.role || u.KT_user_roles?.[0]?.KT_roles?.id || ""}
+                    onChange={(e) => !demo && assignRole(u.id, e.target.value)}
+                  >
+                    <option value="">–</option>
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </span>
+                <span>
+                  <button
+                    className={"statusbtn " + (u.active ? "on" : "")}
+                    onClick={async () => {
+                      if (!demo) await setUserActive(u.id, !u.active);
+                      setUsers((x) => x.map((a) => (a.id === u.id ? { ...a, active: !a.active } : a)));
+                    }}
+                  >
+                    {u.active ? "● Aktiv" : "○ Inaktiv"}
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {invite && (
+            <div className="modalback">
+              <div className="modal glass">
+                <button className="close" onClick={() => setInvite(false)}>
+                  <X />
+                </button>
+                <h2>Crew-Mitglied einladen</h2>
+                <label>
+                  E-Mail
+                  <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.de" />
+                </label>
+                <label>
+                  Rolle
+                  <select value={role} onChange={(e) => setRole(e.target.value)}>
+                    <option value="">Später zuweisen</option>
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Team
+                  <select value={team} onChange={(e) => setTeam(e.target.value)}>
+                    <option value="">Später zuweisen</option>
+                    {teams.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button className="primary full" onClick={sendInvite}>
+                  Einladung erstellen
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
